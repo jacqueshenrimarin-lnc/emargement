@@ -164,8 +164,9 @@ textarea { resize: vertical; min-height: 44px; }
 @keyframes tIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 
 /* ── SCROLLBAR ── */
-::-webkit-scrollbar { width: 4px; }
-::-webkit-scrollbar-thumb { background: var(--Wi); border-radius: 2px; }
+.dur-btn { padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 600; border: 1px solid var(--Wi); background: var(--W); cursor: pointer; font-family: 'Inter Tight', sans-serif; transition: all .15s; color: var(--Sl); }
+.dur-btn:hover { border-color: var(--T); color: var(--T); }
+.dur-btn.active { background: var(--T); color: var(--Pa); border-color: var(--T); }
 </style>
 </head>
 <body>
@@ -273,6 +274,18 @@ textarea { resize: vertical; min-height: 44px; }
         <div class="fg"><label>Date début *</label><input type="date" id="ns_ds"></div>
         <div class="fg"><label>Date fin</label><input type="date" id="ns_de"></div>
       </div>
+
+      <!-- DURÉE RAPIDE -->
+      <div class="fg">
+        <label>Durée de la formation</label>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;">
+          <button type="button" class="dur-btn" onclick="setDuration('2h')">2h</button>
+          <button type="button" class="dur-btn" onclick="setDuration('2h30')">2h30</button>
+          <button type="button" class="dur-btn" onclick="setDuration('demi')">Demi-journée</button>
+          <button type="button" class="dur-btn" onclick="setDuration('jour')">Journée complète</button>
+        </div>
+      </div>
+
       <div class="g2">
         <div class="fg"><label>Heure début</label><input type="time" id="ns_hs" value="09:00"></div>
         <div class="fg"><label>Heure fin</label><input type="time" id="ns_he" value="17:00"></div>
@@ -285,7 +298,7 @@ textarea { resize: vertical; min-height: 44px; }
         <div class="fg"><label>Formateur *</label><input id="ns_form" value="Jacques-Henri MARIN"></div>
         <div class="fg"><label>Email formateur</label><input id="ns_fmail" value="jacqueshenri.marin@lenouvion-consulting.fr"></div>
       </div>
-      <div class="fg"><label>Demi-journées (séparées par virgules)</label><input id="ns_slots" value="Matin J1, Après-midi J1"></div>
+      <div class="fg"><label>Créneaux (séparés par virgules)</label><input id="ns_slots" value="Matin J1, Après-midi J1"></div>
 
       <div class="sec-label">Participants</div>
       <table class="mpt">
@@ -485,9 +498,12 @@ function getToken() {
   return S.atToken || localStorage.getItem('lnc_at_token') || '';
 }
 
-async function atFetch(path, opts = {}) {
+async function atFetch(path, opts = {}, silent = false) {
   const token = getToken();
-  if (!token) { openModal('tokenModal'); throw new Error('Token Airtable manquant — saisissez-le dans la fenêtre de configuration.'); }
+  if (!token) {
+    if (!silent) openModal('tokenModal');
+    throw new Error('Token Airtable manquant.');
+  }
   const res = await fetch(`${AT_URL}${path}`, {
     ...opts,
     headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', ...(opts.headers||{}) }
@@ -495,14 +511,14 @@ async function atFetch(path, opts = {}) {
   if (!res.ok) {
     const e = await res.json().catch(()=>({}));
     const msg = e.error?.message || `HTTP ${res.status}`;
-    // 401 = bad token
-    if (res.status === 401 || res.status === 403) {
-      // Clear bad token and prompt for new one
+    if ((res.status === 401 || res.status === 403) && !silent) {
+      // Only clear token and show modal on explicit user actions, not polling
       S.atToken = '';
       localStorage.removeItem('lnc_at_token');
+      renderTokenStatus();
       document.getElementById('at_token_input').value = '';
       openModal('tokenModal');
-      throw new Error(`Token invalide ou expiré (${res.status}). Collez votre nouveau token Airtable.`);
+      throw new Error(`Token invalide ou expiré. Collez votre nouveau token Airtable.`);
     }
     throw new Error(msg);
   }
@@ -563,10 +579,10 @@ async function pushParticipantsToAirtable(session) {
 async function pullSignaturesFromAirtable(session) {
   let updated = false;
   for (const p of session.participants) {
-    if (p.signatures[0]) continue; // already have sig locally
-    if (!p.atRecordId) continue;   // no Airtable record yet
+    if (p.signatures[0]) continue;
+    if (!p.atRecordId) continue;
     try {
-      const rec = await atFetch(`/${TBL_PARTS}/${p.atRecordId}`);
+      const rec = await atFetch(`/${TBL_PARTS}/${p.atRecordId}`, {}, true); // silent
       if (rec.fields.signature && !p.signatures[0]) {
         p.signatures[0] = rec.fields.signature;
         updated = true;
@@ -760,6 +776,47 @@ function importList() {
   toast(`✓ ${lines.length} ligne(s) importée(s)`);
 }
 
+function setDuration(type) {
+  // Highlight active button
+  document.querySelectorAll('.dur-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+
+  const hs = document.getElementById('ns_hs');
+  const he = document.getElementById('ns_he');
+  const slots = document.getElementById('ns_slots');
+
+  const start = hs.value || '09:00';
+  const [startH, startM] = start.split(':').map(Number);
+
+  switch(type) {
+    case '2h':
+      he.value = pad(startH + 2) + ':' + pad(startM);
+      slots.value = 'Session';
+      break;
+    case '2h30':
+      const endM30 = startM + 30;
+      he.value = pad(startH + 2 + Math.floor(endM30/60)) + ':' + pad(endM30 % 60);
+      slots.value = 'Session';
+      break;
+    case 'demi':
+      // Matin 09h-12h30 ou après-midi selon l'heure de début
+      if (startH < 12) {
+        he.value = '12:30';
+        slots.value = 'Matin';
+      } else {
+        he.value = '17:30';
+        slots.value = 'Après-midi';
+      }
+      break;
+    case 'jour':
+      hs.value = '09:00';
+      he.value = '17:00';
+      slots.value = 'Matin J1, Après-midi J1';
+      break;
+  }
+}
+function pad(n) { return String(n).padStart(2, '0'); }
+
 function openNew() {
   tmp = [];
   renderMPT();
@@ -772,6 +829,7 @@ function openNew() {
   document.getElementById('ns_form').value = 'Jacques-Henri MARIN';
   document.getElementById('ns_fmail').value = 'jacqueshenri.marin@lenouvion-consulting.fr';
   document.getElementById('ns_slots').value = 'Matin J1, Après-midi J1';
+  setTimeout(() => document.querySelectorAll('.dur-btn').forEach(b => b.classList.remove('active')), 50);
   openModal('newModal');
 }
 document.getElementById('btnNew').onclick = openNew;
@@ -928,7 +986,16 @@ function togPresence(pid, si) {
 
 function clrSig(pid, si) {
   const p = getActive().participants.find(x => x.id === pid);
-  if (p) { delete p.signatures[si]; persist(); renderTable(); renderStats(); }
+  if (!p) return;
+  delete p.signatures[si];
+  persist(); renderTable(); renderStats();
+  // Supprimer aussi dans Airtable pour éviter que le polling la réinjecte
+  if (p.atRecordId && getToken()) {
+    atFetch(`/${TBL_PARTS}/${p.atRecordId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ fields: { signature: null, signe_le: null } })
+    }).catch(e => console.warn('AT clear signature failed:', e.message));
+  }
 }
 
 function renderTokenStatus() {
