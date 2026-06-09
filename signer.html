@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Feuille d'émargement — LENOUVION Consulting</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;600;700&family=Inter+Tight:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --T: #C8532B; --B: #8A2D16;
+  --Ink: #0B0B0C; --Pa: #F5F2EC; --Cr: #FAF6EE;
+  --Sl: #4A4A4A; --Wi: #B4B2A9; --W: #FFFFFF;
+  --G: #16a34a; --R: #dc2626;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { min-height: 100%; }
+body { font-family: 'Inter Tight', sans-serif; background: var(--Pa); color: var(--Ink); }
+
+.hdr { background: var(--Ink); border-bottom: 3px solid var(--T); padding: 0 20px; height: 52px; display: flex; align-items: center; justify-content: space-between; }
+.hdr-logo { display: flex; align-items: center; gap: 10px; }
+.hdr-sq { width: 32px; height: 32px; background: var(--T); border-radius: 5px; display: flex; align-items: center; justify-content: center; font-family: 'Fraunces', serif; font-weight: 700; font-size: 13px; color: var(--Pa); }
+.hdr-name { font-family: 'Fraunces', serif; font-weight: 600; font-size: 13px; color: var(--Pa); }
+.hdr-sub { font-size: 9px; color: var(--Wi); letter-spacing: .5px; text-transform: uppercase; }
+.hdr-badge { background: var(--T); color: var(--Pa); font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 20px; }
+
+.wrap { max-width: 680px; margin: 0 auto; padding: 20px 16px 60px; }
+
+.session-card { background: var(--W); border: 1px solid var(--Wi); border-radius: 10px; padding: 16px 18px; margin-bottom: 16px; border-left: 4px solid var(--T); }
+.session-title { font-family: 'Fraunces', serif; font-size: 18px; font-weight: 600; margin-bottom: 8px; line-height: 1.3; }
+.session-meta { display: flex; flex-wrap: wrap; gap: 8px; font-size: 12px; color: var(--Sl); }
+
+.instructions { background: #fff8f6; border: 1px solid #fdddd4; border-radius: 8px; padding: 12px 14px; margin-bottom: 14px; font-size: 12px; color: var(--Sl); line-height: 1.6; }
+.instructions strong { color: var(--T); }
+
+.live-bar { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--Sl); margin-bottom: 14px; }
+.live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--G); animation: pulse 2s infinite; flex-shrink: 0; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .3; } }
+
+.success-banner { background: #dcfce7; border: 1px solid #bbf7d0; border-radius: 8px; padding: 12px 14px; color: #166534; font-size: 13px; font-weight: 600; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+
+.parts-list { display: flex; flex-direction: column; gap: 8px; }
+
+.part-card { background: var(--W); border: 1.5px solid var(--Wi); border-radius: 9px; overflow: hidden; transition: border-color .2s, box-shadow .2s; }
+.part-card.signed { border-color: var(--G); }
+.part-card.signing { border-color: var(--T); box-shadow: 0 0 0 3px rgba(200,83,43,.12); }
+
+.part-header { padding: 13px 15px; display: flex; align-items: center; justify-content: space-between; gap: 10px; cursor: pointer; user-select: none; }
+.part-name { font-weight: 600; font-size: 14px; }
+.part-detail { font-size: 11px; color: var(--Sl); margin-top: 2px; }
+
+.status-badge { font-size: 10px; font-weight: 700; padding: 3px 9px; border-radius: 20px; text-transform: uppercase; letter-spacing: .4px; white-space: nowrap; }
+.status-badge.signed { background: #dcfce7; color: #166534; }
+.status-badge.pending { background: var(--Cr); color: var(--Sl); border: 1px solid var(--Wi); }
+.sig-thumb { height: 30px; max-width: 80px; object-fit: contain; border: 1px solid #dcfce7; border-radius: 3px; vertical-align: middle; }
+
+.sig-area { display: none; border-top: 1.5px solid var(--Cr); padding: 14px; background: #fdfaf7; }
+.sig-area.open { display: block; }
+.sig-label { font-size: 11px; font-weight: 700; color: var(--Sl); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 8px; }
+
+.canv-wrap { border: 2px dashed var(--Wi); border-radius: 7px; background: var(--W); position: relative; overflow: hidden; }
+.canv-wrap canvas { display: block; width: 100%; height: 140px; touch-action: none; cursor: crosshair; }
+.canv-hint { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); font-size: 13px; color: var(--Wi); pointer-events: none; white-space: nowrap; user-select: none; }
+
+.sig-actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+
+.btn { display: inline-flex; align-items: center; gap: 5px; padding: 9px 16px; border: none; border-radius: 6px; font-family: 'Inter Tight', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; transition: all .15s; }
+.btn-p { background: var(--T); color: var(--W); }
+.btn-p:hover { background: var(--B); }
+.btn-s { background: var(--W); color: var(--Sl); border: 1px solid var(--Wi); }
+.btn-s:hover { background: var(--Cr); }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+
+.loader { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 20px; gap: 14px; color: var(--Sl); text-align: center; }
+.spinner { width: 36px; height: 36px; border: 3px solid var(--Cr); border-top-color: var(--T); border-radius: 50%; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.error-box { background: #fee2e2; border: 1px solid #fca5a5; border-radius: 8px; padding: 16px; color: #991b1b; font-size: 13px; margin: 20px 0; line-height: 1.6; }
+.error-box button { margin-top: 10px; }
+
+.slots-nav { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+.slot-btn { padding: 5px 13px; border-radius: 20px; font-size: 11px; font-weight: 600; border: 1px solid var(--Wi); background: var(--W); cursor: pointer; font-family: 'Inter Tight', sans-serif; transition: all .15s; color: var(--Sl); }
+.slot-btn.active { background: var(--T); color: var(--Pa); border-color: var(--T); }
+
+.toasts { position: fixed; bottom: 16px; right: 16px; z-index: 9999; display: flex; flex-direction: column; gap: 6px; }
+.toast { background: var(--Ink); color: var(--Pa); padding: 9px 14px; border-radius: 6px; font-size: 12px; font-weight: 500; box-shadow: 0 4px 18px rgba(0,0,0,.25); animation: tIn .22s ease; border-left: 3px solid var(--T); }
+.toast.warn { border-left-color: #f59e0b; }
+.toast.ok { border-left-color: var(--G); }
+@keyframes tIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-thumb { background: var(--Wi); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<header class="hdr">
+  <div class="hdr-logo">
+    <div class="hdr-sq">LN</div>
+    <div>
+      <div class="hdr-name">LENOUVION Consulting</div>
+      <div class="hdr-sub">Organisme de formation IA · Qualiopi</div>
+    </div>
+  </div>
+  <div class="hdr-badge">✍ Émargement</div>
+</header>
+
+<div class="wrap">
+  <div id="app"></div>
+</div>
+
+<div class="toasts" id="toasts"></div>
+
+<script>
+// ══════════════════════════════════════════════
+// ⚠️ CONFIGURATION — à remplir une seule fois
+// ══════════════════════════════════════════════
+const AT_TOKEN  = 'VOTRE_TOKEN_ICI'; // ← collez votre Personal Access Token Airtable
+const BASE_ID   = 'app1ivGFTEaS29MSw';
+const TBL_SESS  = 'tblSL8vH5u0rDk63x';
+const TBL_PARTS = 'tblrrq4P1bfOsD2Jw';
+// ══════════════════════════════════════════════
+
+const AT_URL = `https://api.airtable.com/v0/${BASE_ID}`;
+let session = null;
+let participants = [];
+let currentSlot = 0;
+let openPid = null;
+let canvCtx = null, drawing = false, lx = 0, ly = 0;
+let pollTimer = null;
+
+// ── AIRTABLE ──────────────────────────────────
+async function atGet(path) {
+  const r = await fetch(`${AT_URL}${path}`, {
+    headers: { 'Authorization': `Bearer ${AT_TOKEN}` }
+  });
+  if (!r.ok) { const e = await r.json().catch(()=>{}); throw new Error(e?.error?.message || `Erreur ${r.status}`); }
+  return r.json();
+}
+
+async function atPatch(table, recordId, fields) {
+  const r = await fetch(`${AT_URL}/${table}/${recordId}`, {
+    method: 'PATCH',
+    headers: { 'Authorization': `Bearer ${AT_TOKEN}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fields })
+  });
+  if (!r.ok) { const e = await r.json().catch(()=>{}); throw new Error(e?.error?.message || `Erreur ${r.status}`); }
+  return r.json();
+}
+
+// ── LOAD ──────────────────────────────────────
+async function loadSession() {
+  // Load all sessions, pick the most recent 'actif' one
+  // Avoid filterByFormula to prevent field name mismatch errors
+  const data = await atGet(`/${TBL_SESS}?maxRecords=10&sort[0][field]=titre&sort[0][direction]=asc`);
+  if (!data.records.length) throw new Error('Aucune session trouvée dans Airtable.\n\nVotre formateur doit d\'abord publier une session.');
+  // Find active session (statut = actif)
+  const active = data.records.find(r => r.fields.statut === 'actif');
+  if (!active) throw new Error('Aucune session active pour le moment.\n\nVotre formateur n\'a pas encore ouvert l\'émargement. Réessayez dans quelques instants.');
+  const r = active;
+  session = {
+    _rid: r.id,
+    ...r.fields,
+    slots: (() => { try { return JSON.parse(r.fields.slots || '["Journée complète"]'); } catch(e) { return ['Journée complète']; } })()
+  };
+}
+
+async function loadParticipants() {
+  // Load all participants and filter client-side to avoid formula field issues
+  const data = await atGet(`/${TBL_PARTS}?maxRecords=100&sort[0][field]=nom&sort[0][direction]=asc`);
+  const sid = session.session_id || session._rid;
+  participants = data.records
+    .filter(r => r.fields.session_id === sid)
+    .map(r => ({ _rid: r.id, ...r.fields }));
+}
+
+// ── POLLING ───────────────────────────────────
+function startPoll() {
+  stopPoll();
+  pollTimer = setInterval(async () => {
+    try {
+      const prev = participants.map(p => p.signature || '');
+      await loadParticipants();
+      participants.forEach((p, i) => {
+        if (p.signature && !prev[i]) {
+          updateCardSigned(p);
+          updateCounter();
+        }
+      });
+    } catch(e) {}
+  }, 5000);
+}
+function stopPoll() { if (pollTimer) { clearInterval(pollTimer); pollTimer = null; } }
+
+// ── RENDER ────────────────────────────────────
+function render() {
+  const signed = participants.filter(p => p.signature).length;
+  const total  = participants.length;
+  const allDone = signed === total && total > 0;
+
+  document.getElementById('app').innerHTML = `
+    <div class="session-card">
+      <div class="session-title">${esc(session.titre || '')}</div>
+      <div class="session-meta">
+        <span>📅 ${session.date_debut || ''}${session.date_fin && session.date_fin !== session.date_debut ? ' → ' + session.date_fin : ''}</span>
+        <span>⏰ ${session.heure_debut || ''}–${session.heure_fin || ''}</span>
+        ${session.lieu ? `<span>📍 ${esc(session.lieu)}</span>` : ''}
+        ${session.client ? `<span>🏢 ${esc(session.client)}</span>` : ''}
+        <span>👤 ${esc(session.formateur || '')}</span>
+      </div>
+    </div>
+
+    <div class="live-bar">
+      <div class="live-dot"></div>
+      <span id="liveCount">Session en direct · <strong>${signed}</strong>/<strong>${total}</strong> signatures</span>
+    </div>
+
+    ${allDone ? `<div class="success-banner">🎉 Toutes les signatures ont été recueillies !</div>` : ''}
+
+    <div class="instructions">
+      <strong>Comment signer :</strong> Trouvez votre nom ci-dessous → appuyez sur votre carte → signez avec votre doigt → appuyez sur <strong>Valider</strong>.
+    </div>
+
+    ${session.slots.length > 1 ? `
+      <div class="slots-nav">
+        ${session.slots.map((sl,i) => `<button class="slot-btn ${i===currentSlot?'active':''}" onclick="setSlot(${i})">${esc(sl)}</button>`).join('')}
+      </div>` : ''}
+
+    <div class="parts-list" id="partsList">
+      ${participants.map(p => cardHtml(p)).join('')}
+    </div>`;
+
+  if (openPid) {
+    const area = document.getElementById(`sa-${openPid}`);
+    if (area) { area.classList.add('open'); setTimeout(() => initCanvas(openPid), 50); }
+  }
+  startPoll();
+}
+
+function cardHtml(p) {
+  const signed = !!p.signature;
+  const isOpen = openPid === p._rid;
+  return `
+    <div class="part-card ${signed?'signed':''} ${isOpen&&!signed?'signing':''}" id="card-${p._rid}">
+      <div class="part-header" onclick="toggleCard('${p._rid}')">
+        <div>
+          <div class="part-name">${esc(p.prenom||'')} ${esc(p.nom||'')}</div>
+          ${p.societe||p.fonction ? `<div class="part-detail">${esc(p.fonction||'')}${p.fonction&&p.societe?' · ':''}${esc(p.societe||'')}</div>` : ''}
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+          ${signed
+            ? `<img src="${p.signature}" class="sig-thumb" alt="sig">
+               <span class="status-badge signed">✓ Signé</span>`
+            : `<span class="status-badge pending">Appuyez pour signer</span>`}
+        </div>
+      </div>
+      <div class="sig-area ${isOpen&&!signed?'open':''}" id="sa-${p._rid}">
+        ${signed
+          ? `<div style="text-align:center;padding:10px;color:var(--G);font-size:13px;font-weight:600;">✓ Signature enregistrée — merci !</div>`
+          : `<div class="sig-label">Tracez votre signature ci-dessous</div>
+             <div class="canv-wrap">
+               <canvas id="cv-${p._rid}"></canvas>
+               <div class="canv-hint" id="ch-${p._rid}">Signez ici avec votre doigt ✍</div>
+             </div>
+             <div class="sig-actions">
+               <button class="btn btn-s" onclick="clearCanv('${p._rid}');event.stopPropagation()">🗑 Effacer</button>
+               <button class="btn btn-p" id="bv-${p._rid}" onclick="validate('${p._rid}');event.stopPropagation()">✓ Valider ma signature</button>
+             </div>`}
+      </div>
+    </div>`;
+}
+
+function updateCardSigned(p) {
+  const card = document.getElementById(`card-${p._rid}`);
+  if (!card) return;
+  card.outerHTML = cardHtml(p);
+}
+
+function updateCounter() {
+  const signed = participants.filter(p => p.signature).length;
+  const total  = participants.length;
+  const el = document.getElementById('liveCount');
+  if (el) el.innerHTML = `Session en direct · <strong>${signed}</strong>/<strong>${total}</strong> signatures`;
+  if (signed === total && total > 0) {
+    const list = document.getElementById('partsList');
+    if (list && !document.querySelector('.success-banner')) {
+      list.insertAdjacentHTML('beforebegin', `<div class="success-banner">🎉 Toutes les signatures ont été recueillies !</div>`);
+    }
+  }
+}
+
+// ── CARD TOGGLE ───────────────────────────────
+function setSlot(i) { currentSlot = i; openPid = null; render(); }
+
+function toggleCard(pid) {
+  const p = participants.find(x => x._rid === pid);
+  if (p?.signature) return; // already signed
+
+  if (openPid === pid) {
+    openPid = null;
+    const area = document.getElementById(`sa-${pid}`);
+    if (area) area.classList.remove('open');
+    const card = document.getElementById(`card-${pid}`);
+    if (card) card.classList.remove('signing');
+  } else {
+    // close previous
+    if (openPid) {
+      document.getElementById(`sa-${openPid}`)?.classList.remove('open');
+      document.getElementById(`card-${openPid}`)?.classList.remove('signing');
+    }
+    openPid = pid;
+    const area = document.getElementById(`sa-${pid}`);
+    const card = document.getElementById(`card-${pid}`);
+    area?.classList.add('open');
+    card?.classList.add('signing');
+    setTimeout(() => initCanvas(pid), 50);
+    card?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+}
+
+// ── CANVAS ────────────────────────────────────
+function initCanvas(pid) {
+  const c = document.getElementById(`cv-${pid}`);
+  if (!c) return;
+  const w = c.offsetWidth || 600;
+  c.width = w; c.height = 140;
+  canvCtx = c.getContext('2d');
+  canvCtx.clearRect(0, 0, c.width, c.height);
+  canvCtx.strokeStyle = '#0B0B0C';
+  canvCtx.lineWidth = 2.5;
+  canvCtx.lineCap = 'round';
+  canvCtx.lineJoin = 'round';
+
+  const hint = document.getElementById(`ch-${pid}`);
+  const pos = e => {
+    const r = c.getBoundingClientRect();
+    const s = e.touches ? e.touches[0] : e;
+    return [(s.clientX - r.left) * c.width / r.width, (s.clientY - r.top) * c.height / r.height];
+  };
+  c.onmousedown   = e => { drawing=true; [lx,ly]=pos(e); if(hint) hint.style.display='none'; };
+  c.onmousemove   = e => { if(!drawing) return; const[x,y]=pos(e); canvCtx.beginPath(); canvCtx.moveTo(lx,ly); canvCtx.lineTo(x,y); canvCtx.stroke(); lx=x; ly=y; };
+  c.onmouseup     = () => drawing=false;
+  c.onmouseleave  = () => drawing=false;
+  c.ontouchstart  = e => { e.preventDefault(); drawing=true; [lx,ly]=pos(e); if(hint) hint.style.display='none'; };
+  c.ontouchmove   = e => { e.preventDefault(); if(!drawing) return; const[x,y]=pos(e); canvCtx.beginPath(); canvCtx.moveTo(lx,ly); canvCtx.lineTo(x,y); canvCtx.stroke(); lx=x; ly=y; };
+  c.ontouchend    = () => drawing=false;
+}
+
+function clearCanv(pid) {
+  const c = document.getElementById(`cv-${pid}`);
+  if (!c || !canvCtx) return;
+  canvCtx.clearRect(0, 0, c.width, c.height);
+  const hint = document.getElementById(`ch-${pid}`);
+  if (hint) hint.style.display = 'block';
+}
+
+async function validate(pid) {
+  const c = document.getElementById(`cv-${pid}`);
+  if (!c) return;
+  const blank = !canvCtx.getImageData(0,0,c.width,c.height).data.some(v => v !== 0);
+  if (blank) { toast('Veuillez signer avant de valider','warn'); return; }
+
+  const btn = document.getElementById(`bv-${pid}`);
+  if (btn) { btn.disabled=true; btn.textContent='⏳ Enregistrement…'; }
+
+  try {
+    const sigData = c.toDataURL('image/png');
+    await atPatch(TBL_PARTS, pid, {
+      signature: sigData,
+      signe_le: new Date().toISOString(),
+      presence: true
+    });
+    const p = participants.find(x => x._rid === pid);
+    if (p) p.signature = sigData;
+    openPid = null;
+    updateCardSigned({ _rid: pid, ...p });
+    updateCounter();
+    toast('✓ Signature enregistrée — merci !','ok');
+  } catch(e) {
+    toast(`Erreur : ${e.message}`,'warn');
+    if (btn) { btn.disabled=false; btn.textContent='✓ Valider ma signature'; }
+  }
+}
+
+// ── UTILS ─────────────────────────────────────
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function toast(msg, type='') {
+  const el = document.createElement('div');
+  el.className = 'toast' + (type?' '+type:'');
+  el.textContent = msg;
+  document.getElementById('toasts').appendChild(el);
+  setTimeout(() => el.remove(), 3500);
+}
+
+// ── BOOT ──────────────────────────────────────
+async function boot() {
+  document.getElementById('app').innerHTML = `
+    <div class="loader"><div class="spinner"></div><div>Chargement de la session…</div></div>`;
+
+  // Check token configured
+  if (!AT_TOKEN || AT_TOKEN === 'VOTRE_TOKEN_ICI') {
+    document.getElementById('app').innerHTML = `
+      <div class="error-box">
+        ⚙️ <strong>Configuration requise</strong><br><br>
+        Le token Airtable n'a pas été configuré dans ce fichier.<br>
+        Contactez votre formateur.
+      </div>`;
+    return;
+  }
+
+  try {
+    await loadSession();
+    await loadParticipants();
+    render();
+  } catch(e) {
+    document.getElementById('app').innerHTML = `
+      <div class="error-box">
+        ${esc(e.message)}
+        <br>
+        <button class="btn btn-s" onclick="boot()" style="margin-top:10px;">↩ Réessayer</button>
+      </div>`;
+  }
+}
+
+boot();
+</script>
+</body>
+</html>
