@@ -160,6 +160,7 @@ textarea { resize: vertical; min-height: 44px; }
 .toasts { position: fixed; bottom: 16px; right: 16px; z-index: 9999; display: flex; flex-direction: column; gap: 6px; pointer-events: none; }
 .toast { background: var(--Ink); color: var(--Pa); padding: 9px 13px; border-radius: 6px; font-size: 12px; font-weight: 500; box-shadow: 0 4px 18px rgba(0,0,0,.25); animation: tIn .22s ease; border-left: 3px solid var(--T); pointer-events: auto; }
 .toast.warn { border-left-color: #f59e0b; }
+.toast.ok { border-left-color: var(--G); }
 @keyframes tIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 
 /* ── SCROLLBAR ── */
@@ -191,7 +192,10 @@ textarea { resize: vertical; min-height: 44px; }
       <button class="btn btn-p btn-w" id="btnNew">＋ Nouvelle session</button>
     </div>
     <div class="sb-list" id="sbList"></div>
-    <div class="sb-foot">🔒 Données locales · SIRET 980 112 536 00019</div>
+    <div class="sb-foot">
+      <div id="tokenStatus" style="margin-bottom:6px;"></div>
+      <div>🔒 Données locales · SIRET 980 112 536 00019</div>
+    </div>
   </aside>
 
   <!-- MAIN -->
@@ -217,9 +221,10 @@ textarea { resize: vertical; min-height: 44px; }
           </div>
           <div class="toolbar-actions">
             <button class="btn btn-s btn-sm" onclick="openEditModal()">✏ Modifier</button>
+            <button class="btn btn-sm" id="btnPublish" style="background:#0ea5e9;color:#fff;" onclick="handlePublish()">🌐 Publier</button>
             <button class="btn btn-sa btn-sm" onclick="exportJSON()">💾 JSON</button>
             <button class="btn btn-p btn-sm" onclick="exportPDF()">📄 PDF</button>
-            <button class="btn btn-blue btn-sm" onclick="openEmailModal()">📧 Envoyer</button>
+            <button class="btn btn-blue btn-sm" onclick="openEmailFormateur()">📧 Email formateur</button>
           </div>
         </div>
       </div>
@@ -396,59 +401,62 @@ textarea { resize: vertical; min-height: 44px; }
 </div>
 
 <!-- ════════════════════════════════
-     MODAL : EMAIL ÉMARGEMENT
+     MODAL : BROUILLON EMAIL INDIVIDUEL
+═════════════════════════════════ -->
+<div class="overlay" id="draftModal" style="display:none;">
+  <div class="modal" style="max-width:580px;">
+    <div class="modal-h">
+      <div>
+        <div class="modal-title">📧 Brouillon email</div>
+        <div id="draft_to" style="font-size:11px;color:var(--Sl);margin-top:2px;"></div>
+      </div>
+      <button class="modal-x" onclick="closeModal('draftModal')">✕</button>
+    </div>
+    <div class="modal-b">
+      <div class="fg">
+        <label>Objet</label>
+        <input id="draft_subject" style="font-weight:600;">
+      </div>
+      <div class="fg">
+        <label>Corps du message</label>
+        <textarea id="draft_body" style="min-height:280px;font-size:12px;line-height:1.6;font-family:'Inter Tight',sans-serif;"></textarea>
+      </div>
+    </div>
+    <div class="modal-f" style="justify-content:space-between;align-items:center;">
+      <span style="font-size:10px;color:var(--Wi);">Modifiable avant envoi · Ouverture dans votre client email</span>
+      <div style="display:flex;gap:7px;">
+        <button class="btn btn-s" onclick="closeModal('draftModal')">Fermer</button>
+        <button class="btn btn-blue" onclick="sendDraft()">📧 Envoyer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════
+     MODAL : EMAIL GLOBAL (formateur)
 ═════════════════════════════════ -->
 <div class="overlay" id="emailModal" style="display:none;">
   <div class="modal" style="max-width:580px;">
     <div class="modal-h">
-      <div class="modal-title">📧 Envoyer la feuille d'émargement</div>
+      <div class="modal-title">📧 Email récap formateur</div>
       <button class="modal-x" onclick="closeModal('emailModal')">✕</button>
     </div>
     <div class="modal-b">
-      <div class="sec-label">Configuration</div>
       <div class="fg">
-        <label>URL de l'application d'émargement</label>
-        <input id="em_appurl">
-        <div style="font-size:10px;color:var(--Wi);margin-top:2px;">Inclus dans chaque email pour que les participants signent depuis leur téléphone.</div>
+        <label>Objet</label>
+        <input id="em_subject" style="font-weight:600;">
       </div>
-      <div class="g2" style="margin-bottom:10px;">
-        <div class="fg" style="margin:0;">
-          <label>Destinataires</label>
-          <div style="display:flex;flex-direction:column;gap:5px;margin-top:4px;">
-            <label style="text-transform:none;letter-spacing:0;font-size:12px;font-weight:400;display:flex;align-items:center;gap:6px;cursor:pointer;">
-              <input type="checkbox" id="em_sendparts" checked style="width:14px;height:14px;accent-color:var(--T);cursor:pointer;flex-shrink:0;">
-              Participants (avec email)
-            </label>
-            <label style="text-transform:none;letter-spacing:0;font-size:12px;font-weight:400;display:flex;align-items:center;gap:6px;cursor:pointer;">
-              <input type="checkbox" id="em_sendform" checked style="width:14px;height:14px;accent-color:var(--T);cursor:pointer;flex-shrink:0;">
-              Formateur (récap complet)
-            </label>
-          </div>
-        </div>
-        <div class="fg" style="margin:0;">
-          <label>Demi-journée</label>
-          <select id="em_slot" style="margin-top:4px;"></select>
-        </div>
+      <div class="fg">
+        <label>Corps du message</label>
+        <textarea id="em_body" style="min-height:280px;font-size:12px;line-height:1.6;font-family:'Inter Tight',sans-serif;"></textarea>
       </div>
-
-      <div class="sec-label">Prévisualisation — participant</div>
-      <div style="border:1px solid var(--Wi);border-radius:6px;overflow:hidden;margin-bottom:10px;">
-        <div style="background:var(--Ink);padding:8px 12px;font-size:10px;color:var(--Wi);display:flex;gap:14px;flex-wrap:wrap;">
-          <span>Objet : <strong style="color:var(--Pa);" id="em_prev_subj">—</strong></span>
-        </div>
-        <div id="em_prev_body" style="padding:10px 12px;font-size:11px;line-height:1.6;color:var(--Ink);max-height:180px;overflow-y:auto;white-space:pre-wrap;background:var(--W);"></div>
-      </div>
-
-      <div id="em_warn" style="display:none;padding:8px 10px;background:#fef9c3;border:1px solid #fde047;border-radius:5px;font-size:11px;color:#713f12;margin-bottom:8px;">
-        ⚠ <span id="em_warn_msg"></span>
-      </div>
-
-      <div class="sec-label">Résumé</div>
-      <div id="em_summary" style="font-size:12px;color:var(--Sl);line-height:1.8;"></div>
     </div>
-    <div class="modal-f">
-      <button class="btn btn-s" onclick="closeModal('emailModal')">Annuler</button>
-      <button class="btn btn-blue" onclick="sendEmails()">📧 Ouvrir les emails</button>
+    <div class="modal-f" style="justify-content:space-between;align-items:center;">
+      <span style="font-size:10px;color:var(--Wi);">Modifiable avant envoi · Ouverture dans votre client email</span>
+      <div style="display:flex;gap:7px;">
+        <button class="btn btn-s" onclick="closeModal('emailModal')">Fermer</button>
+        <button class="btn btn-blue" onclick="sendEmailFormateur()">📧 Envoyer au formateur</button>
+      </div>
     </div>
   </div>
 </div>
@@ -458,14 +466,194 @@ textarea { resize: vertical; min-height: 44px; }
 // STATE & PERSISTENCE
 // ════════════════════════════════════════════
 const STORE_KEY = 'lnc_ema_v3';
-const DEFAULT_URL = 'https://jacqueshenrimarin-lnc.github.io/evaluation-formation/';
-let S = { sessions: [], aid: null, aslot: 0, appUrl: DEFAULT_URL };
+const DEFAULT_URL = 'https://jacqueshenrimarin-lnc.github.io/emargement/';
+const SIGNER_URL  = 'https://jacqueshenrimarin-lnc.github.io/emargement/signer.html';
+const BASE_ID     = 'app1ivGFTEaS29MSw';
+const TBL_SESS    = 'tblSL8vH5u0rDk63x';
+const TBL_PARTS   = 'tblrrq4P1bfOsD2Jw';
+const AT_URL      = `https://api.airtable.com/v0/${BASE_ID}`;
+
+let S = { sessions: [], aid: null, aslot: 0, appUrl: DEFAULT_URL, atToken: '' };
+let pollInterval = null;
+
+// ════════════════════════════════════════════
+// AIRTABLE API
+// ════════════════════════════════════════════
+function getToken() {
+  // Always check both sources — S.atToken may not survive page reload
+  return S.atToken || localStorage.getItem('lnc_at_token') || '';
+}
+
+async function atFetch(path, opts = {}) {
+  const token = getToken();
+  if (!token) { openModal('tokenModal'); throw new Error('Token Airtable manquant — saisissez-le dans la fenêtre de configuration.'); }
+  const res = await fetch(`${AT_URL}${path}`, {
+    ...opts,
+    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', ...(opts.headers||{}) }
+  });
+  if (!res.ok) {
+    const e = await res.json().catch(()=>({}));
+    const msg = e.error?.message || `HTTP ${res.status}`;
+    // 401 = bad token
+    if (res.status === 401 || res.status === 403) {
+      // Clear bad token and prompt for new one
+      S.atToken = '';
+      localStorage.removeItem('lnc_at_token');
+      document.getElementById('at_token_input').value = '';
+      openModal('tokenModal');
+      throw new Error(`Token invalide ou expiré (${res.status}). Collez votre nouveau token Airtable.`);
+    }
+    throw new Error(msg);
+  }
+  return res.json();
+}
+
+async function pushSessionToAirtable(session) {
+  const fields = {
+    titre: session.title,
+    date_debut: session.ds,
+    date_fin: session.de,
+    heure_debut: session.hs,
+    heure_fin: session.he,
+    lieu: session.lieu || '',
+    client: session.client || '',
+    formateur: session.formateur || '',
+    fmail: session.fmail || '',
+    slots: JSON.stringify(session.slots),
+    statut: 'actif',
+    session_id: session.id
+  };
+  // Always create a fresh record — simpler and avoids filter field name issues
+  const result = await atFetch(`/${TBL_SESS}`, { method: 'POST', body: JSON.stringify({ fields }) });
+  // Store the Airtable record ID for later (clôture)
+  session.atRecordId = result.id;
+}
+
+async function pushParticipantsToAirtable(session) {
+  for (const p of session.participants) {
+    // Only send fields guaranteed to be Single line text
+    // Presence and slot_index are optional — skip if they cause errors
+    const fields = {
+      session_id: session.id,
+      participant_id: p.id,
+      prenom: p.prenom || '',
+      nom: p.nom || '',
+      email: p.email || '',
+      societe: p.societe || '',
+      fonction: p.fonction || ''
+    };
+    try {
+      const result = await atFetch(`/${TBL_PARTS}`, { method: 'POST', body: JSON.stringify({ fields }) });
+      p.atRecordId = result.id;
+    } catch(e) {
+      // Try with minimal fields if full set fails
+      try {
+        const minimal = { session_id: session.id, prenom: p.prenom || '', nom: p.nom || '' };
+        const result = await atFetch(`/${TBL_PARTS}`, { method: 'POST', body: JSON.stringify({ fields: minimal }) });
+        p.atRecordId = result.id;
+      } catch(e2) {
+        toast(`⚠ ${p.prenom} ${p.nom} : ${e2.message}`, 'warn');
+      }
+    }
+  }
+  persist();
+}
+
+async function pullSignaturesFromAirtable(session) {
+  let updated = false;
+  for (const p of session.participants) {
+    if (p.signatures[0]) continue; // already have sig locally
+    if (!p.atRecordId) continue;   // no Airtable record yet
+    try {
+      const rec = await atFetch(`/${TBL_PARTS}/${p.atRecordId}`);
+      if (rec.fields.signature && !p.signatures[0]) {
+        p.signatures[0] = rec.fields.signature;
+        updated = true;
+      }
+    } catch(e) {}
+  }
+  if (updated) { persist(); renderTable(); renderStats(); }
+  return updated;
+}
+
+async function setSessionInactive(session) {
+  if (!session.atRecordId) return;
+  await atFetch(`/${TBL_SESS}/${session.atRecordId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ fields: { statut: 'terminé' } })
+  });
+}
+
+function startPoll(session) {
+  if (pollInterval) clearInterval(pollInterval);
+  pollInterval = setInterval(async () => {
+    try {
+      const updated = await pullSignaturesFromAirtable(session);
+      if (updated) toast('🔄 Nouvelles signatures reçues', 'ok');
+    } catch(e) {}
+  }, 5000);
+}
+
+function stopPoll() { if (pollInterval) { clearInterval(pollInterval); pollInterval = null; } }
+
+async function clotureAllActiveSessions() {
+  // Charge tous les records Sessions et clôture ceux en statut actif
+  const data = await atFetch(`/${TBL_SESS}?maxRecords=50`);
+  for (const r of data.records) {
+    if (r.fields.statut === 'actif') {
+      try {
+        await atFetch(`/${TBL_SESS}/${r.id}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ fields: { statut: 'terminé' } })
+        });
+      } catch(e) {}
+    }
+  }
+}
+
+// Publish session to Airtable + start polling
+async function publishSession(session) {
+  const token = getToken();
+  if (!token) { openModal('tokenModal'); return; }
+  toast('⏳ Publication vers Airtable…');
+  try {
+    // 1. Clôture toutes les sessions actives existantes pour éviter les doublons
+    await clotureAllActiveSessions();
+    // 2. Crée la nouvelle session et ses participants
+    await pushSessionToAirtable(session);
+    await pushParticipantsToAirtable(session);
+    session.published = true;
+    persist();
+    startPoll(session);
+    renderSV();
+    toast('✓ Session publiée — partagez le lien aux participants');
+  } catch(e) {
+    toast(`Erreur Airtable : ${e.message}`, 'warn');
+  }
+}
+
+async function closeSession(session) {
+  if (!confirm('Clôturer la session ? Les participants ne pourront plus signer.')) return;
+  try {
+    await setSessionInactive(session);
+    session.published = false;
+    persist();
+    stopPoll();
+    renderSV();
+    toast('✓ Session clôturée');
+  } catch(e) {
+    toast(`Erreur : ${e.message}`, 'warn');
+  }
+}
 
 function persist() { try { localStorage.setItem(STORE_KEY, JSON.stringify(S)); } catch(e) {} }
 function hydrate() {
   try {
     const d = localStorage.getItem(STORE_KEY);
     if (d) { const p = JSON.parse(d); S = { ...S, ...p }; }
+    // Always reload token from localStorage (not persisted in S to avoid accidental exposure)
+    const storedToken = localStorage.getItem('lnc_at_token');
+    if (storedToken) S.atToken = storedToken;
     // migrate from old keys
     ['lnc_ema_v2','lnc_emargement_v2','lnc_emargement'].forEach(k => {
       try {
@@ -475,6 +663,20 @@ function hydrate() {
           if (op.sessions) { S.sessions = op.sessions; persist(); }
         }
       } catch(e) {}
+    });
+    // Normalize all signature/presence keys to integers
+    // (localStorage serializes numeric keys as strings)
+    S.sessions.forEach(session => {
+      session.participants.forEach(p => {
+        // normalize signatures
+        const newSig = {};
+        Object.keys(p.signatures||{}).forEach(k => { newSig[parseInt(k)] = p.signatures[k]; });
+        p.signatures = newSig;
+        // normalize presence
+        const newPres = {};
+        Object.keys(p.presence||{}).forEach(k => { newPres[parseInt(k)] = p.presence[k]; });
+        p.presence = newPres;
+      });
     });
   } catch(e) {}
 }
@@ -505,9 +707,9 @@ function todayStr() { return new Date().toISOString().split('T')[0]; }
 function slug(s) { return String(s).replace(/[^a-zA-Z0-9]/g,'_').substring(0,40); }
 function getActive() { return S.sessions.find(s => s.id === S.aid); }
 
-function toast(msg, type = 'ok') {
+function toast(msg, type = '') {
   const el = document.createElement('div');
-  el.className = 'toast' + (type === 'warn' ? ' warn' : '');
+  el.className = 'toast' + (type ? ' ' + type : '');
   el.textContent = msg;
   document.getElementById('toasts').appendChild(el);
   setTimeout(() => el.remove(), 3500);
@@ -604,6 +806,43 @@ function createSession() {
   closeModal('newModal');
   renderSB(); renderSV();
   toast('✓ Session créée');
+
+  // Enregistrement automatique dans Airtable (brouillon) si token disponible
+  const token = getToken();
+  if (token) {
+    pushSessionAsDraft(session).then(() => {
+      // Une fois la session créée dans AT, pousser les participants
+      if (session.participants.length) {
+        session.participants.forEach(p => pushParticipantToAirtable(session, p));
+      }
+    });
+  }
+}
+
+async function pushSessionAsDraft(session) {
+  try {
+    const fields = {
+      titre: session.title,
+      date_debut: session.ds,
+      date_fin: session.de,
+      heure_debut: session.hs,
+      heure_fin: session.he,
+      lieu: session.lieu || '',
+      client: session.client || '',
+      formateur: session.formateur || '',
+      fmail: session.fmail || '',
+      slots: JSON.stringify(session.slots),
+      statut: 'brouillon',
+      session_id: session.id
+    };
+    const result = await atFetch(`/${TBL_SESS}`, { method: 'POST', body: JSON.stringify({ fields }) });
+    session.atRecordId = result.id;
+    persist();
+    toast('☁ Session sauvegardée dans Airtable (brouillon)', 'ok');
+  } catch(e) {
+    // Silent fail — session exists locally, Airtable sync is best-effort
+    console.warn('Airtable draft save failed:', e.message);
+  }
 }
 
 // ════════════════════════════════════════════
@@ -638,15 +877,47 @@ function addPart() {
   document.getElementById('aP').focus();
   renderTable(); renderStats();
   toast(`✓ ${p.prenom} ${p.nom} ajouté(e)`);
+
+  // Sync vers Airtable si token dispo
+  if (getToken()) pushParticipantToAirtable(s, p);
 }
 function addKey(e) { if (e.key === 'Enter') addPart(); }
+
+async function pushParticipantToAirtable(session, p) {
+  if (!session.id) { console.warn('pushParticipantToAirtable: session.id manquant'); return; }
+  try {
+    const fields = {
+      session_id: session.id,
+      participant_id: p.id,
+      prenom: p.prenom || '',
+      nom: p.nom || '',
+      email: p.email || '',
+      societe: p.societe || '',
+      fonction: p.fonction || ''
+    };
+    console.log('AT push participant:', JSON.stringify(fields));
+    const result = await atFetch(`/${TBL_PARTS}`, { method: 'POST', body: JSON.stringify({ fields }) });
+    p.atRecordId = result.id;
+    persist();
+    console.log('AT participant créé:', result.id);
+  } catch(e) {
+    console.error('Airtable participant sync failed:', e.message);
+    toast(`⚠ Participant non sync : ${e.message}`, 'warn');
+  }
+}
 
 function rmPart(id) {
   if (!confirm('Supprimer ce participant ?')) return;
   const s = getActive();
-  s.participants = s.participants.filter(p => p.id !== id);
+  const p = s.participants.find(x => x.id === id);
+  s.participants = s.participants.filter(x => x.id !== id);
   persist(); renderTable(); renderStats();
   toast('Participant supprimé');
+  // Sync suppression vers Airtable
+  if (p?.atRecordId && getToken()) {
+    atFetch(`/${TBL_PARTS}/${p.atRecordId}`, { method: 'DELETE' })
+      .catch(e => console.warn('AT delete participant failed:', e.message));
+  }
 }
 
 function togPresence(pid, si) {
@@ -659,10 +930,30 @@ function clrSig(pid, si) {
   if (p) { delete p.signatures[si]; persist(); renderTable(); renderStats(); }
 }
 
+function renderTokenStatus() {
+  const el = document.getElementById('tokenStatus');
+  if (!el) return;
+  const token = getToken();
+  if (token) {
+    el.innerHTML = `<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
+      <span style="font-size:10px;color:var(--G);">🟢 Airtable connecté</span>
+      <button onclick="resetToken()" style="background:none;border:none;cursor:pointer;font-size:10px;color:var(--Wi);text-decoration:underline;padding:0;">Changer</button>
+    </div>`;
+  } else {
+    el.innerHTML = `<button class="btn btn-p btn-w" style="font-size:11px;padding:6px;" onclick="openTokenSetup()">🔑 Configurer Airtable</button>`;
+  }
+}
+
+function openTokenSetup() {
+  document.getElementById('at_token_input').value = '';
+  openModal('tokenModal');
+}
+
 // ════════════════════════════════════════════
 // RENDER SIDEBAR
 // ════════════════════════════════════════════
 function renderSB() {
+  renderTokenStatus();
   const el = document.getElementById('sbList');
   if (!S.sessions.length) {
     el.innerHTML = '<div style="padding:14px;text-align:center;color:var(--Sl);font-size:12px;">Aucune session.</div>';
@@ -696,6 +987,12 @@ function renderSV() {
     s.hs + '–' + s.he, s.lieu, s.client, s.formateur
   ].filter(Boolean).join(' · ');
   document.getElementById('svMeta').textContent = meta;
+
+  const btn = document.getElementById('btnPublish');
+  if (btn) {
+    if (s.published) { btn.textContent = '🟢 En ligne'; btn.style.background = '#16a34a'; startPoll(s); }
+    else { btn.textContent = '🌐 Publier'; btn.style.background = '#0ea5e9'; }
+  }
 
   document.getElementById('slotsBar').innerHTML =
     s.slots.map((sl,i) => `<button class="stab ${i === S.aslot ? 'active' : ''}" onclick="setSlot(${i})">${esc(sl)}</button>`).join('') +
@@ -746,9 +1043,6 @@ function renderTable() {
       const present = p.presence[si] !== false;
       const sig = p.signatures[si];
       const hasEmail = p.email && p.email.includes('@');
-      const mailto = hasEmail
-        ? `mailto:${encodeURIComponent(p.email)}?subject=${encodeURIComponent(buildSubjPart(s))}&body=${encodeURIComponent(buildBodyPart(s, p, appUrl))}`
-        : '#';
       return `<tr>
         <td style="color:var(--Wi);font-size:10px;text-align:center;">${i+1}</td>
         <td><strong>${esc(p.prenom)} ${esc(p.nom)}</strong>${p.fonction ? `<div style="font-size:10px;color:var(--Sl);">${esc(p.fonction)}</div>` : ''}</td>
@@ -756,8 +1050,8 @@ function renderTable() {
           <div style="display:flex;align-items:center;gap:5px;">
             <span style="color:var(--Sl);font-size:11px;">${esc(p.email || '—')}</span>
             ${hasEmail
-              ? `<a href="${mailto}" class="btn btn-blue btn-xs" style="text-decoration:none;" title="Envoyer l'email d'émargement">✉</a>`
-              : `<span style="font-size:10px;color:var(--Wi);" title="Pas d'email">✕</span>`}
+              ? `<button class="btn btn-blue btn-xs" onclick="openDraft('${p.id}')" title="Ouvrir le brouillon email">✉ Email</button>`
+              : `<span style="font-size:10px;color:var(--Wi);" title="Pas d'email">—</span>`}
           </div>
         </td>
         <td style="color:var(--Sl);font-size:11px;">${esc(p.societe || '—')}</td>
@@ -895,7 +1189,13 @@ function edRm(i) {
   if (p.signatures && Object.keys(p.signatures).length) {
     if (!confirm(`${p.prenom} ${p.nom} a déjà signé. Supprimer quand même ?`)) return;
   }
-  edTmp.splice(i,1); renderEdTable();
+  edTmp.splice(i, 1);
+  renderEdTable();
+  // Sync suppression vers Airtable immédiatement
+  if (p.atRecordId && getToken()) {
+    atFetch(`/${TBL_PARTS}/${p.atRecordId}`, { method: 'DELETE' })
+      .catch(e => console.warn('AT delete participant failed:', e.message));
+  }
 }
 
 function edAddPart() {
@@ -956,15 +1256,51 @@ function saveEdit() {
   S.aslot = Math.min(S.aslot, slots.length - 1);
   renderSB(); renderSV();
   toast('✓ Session mise à jour');
+
+  // Sync vers Airtable si token dispo
+  if (getToken()) {
+    syncSessionToAirtable(s);
+    // Push nouveaux participants (ceux sans atRecordId)
+    s.participants.filter(p => !p.atRecordId).forEach(p => pushParticipantToAirtable(s, p));
+  }
+}
+
+async function syncSessionToAirtable(s) {
+  try {
+    const fields = {
+      titre: s.title, date_debut: s.ds, date_fin: s.de,
+      heure_debut: s.hs, heure_fin: s.he,
+      lieu: s.lieu || '', client: s.client || '',
+      formateur: s.formateur || '', fmail: s.fmail || '',
+      slots: JSON.stringify(s.slots),
+      statut: s.published ? 'actif' : 'brouillon',
+      session_id: s.id
+    };
+    if (s.atRecordId) {
+      // Mise à jour du record existant
+      await atFetch(`/${TBL_SESS}/${s.atRecordId}`, { method: 'PATCH', body: JSON.stringify({ fields }) });
+    } else {
+      // Création si pas encore dans Airtable
+      const result = await atFetch(`/${TBL_SESS}`, { method: 'POST', body: JSON.stringify({ fields }) });
+      s.atRecordId = result.id;
+      persist();
+    }
+    toast('☁ Modifications synchronisées', 'ok');
+  } catch(e) {
+    console.warn('Airtable sync failed:', e.message);
+  }
 }
 
 // ════════════════════════════════════════════
-// EMAIL — CONTENT BUILDERS
+// EMAIL — HELPERS & BUILDERS
 // ════════════════════════════════════════════
-function getSlotLabel(s) {
-  const val = document.getElementById('em_slot')?.value;
-  if (!val || val === 'all') return s.slots.join(', ');
-  return s.slots[parseInt(val)] || s.slots[0];
+function fireMailto(email, subject, body) {
+  const a = document.createElement('a');
+  a.href = `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  a.style.display = 'none';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => document.body.removeChild(a), 500);
 }
 
 function buildSubjPart(s) {
@@ -975,36 +1311,34 @@ function buildSubjForm(s) {
 }
 
 function buildBodyPart(s, p, appUrl) {
-  const slot = getSlotLabel(s);
-  const link = appUrl
-    ? `Cliquez sur le lien ci-dessous et apposez votre signature :\n\n👉 ${appUrl}\n\n⏱ Moins de 30 secondes depuis votre téléphone.`
-    : `Votre formateur vous communiquera le lien au démarrage.\n👉 ${DEFAULT_URL}`;
+  const url = appUrl || DEFAULT_URL;
   return `Bonjour ${p.prenom},
 
 La session "${s.title}" démarre dans quelques minutes.
 Merci de signer votre feuille d'émargement dès maintenant.
 
-${link}
+Cliquez sur le lien ci-dessous et apposez votre signature :
+
+👉 ${url}
+
+⏱ Moins de 30 secondes depuis votre téléphone.
 
 ──────────────────────────────
 📚 ${s.title}
 📅 ${fmtD(s.ds)}${s.de !== s.ds ? ' → ' + fmtD(s.de) : ''}  ·  ⏰ ${s.hs}–${s.he}
-${s.lieu ? '📍 ' + s.lieu + '  ·  ' : ''}📋 ${slot}
-👤 Formateur : ${s.formateur}
+${s.lieu ? '📍 ' + s.lieu + '\n' : ''}${s.client ? '🏢 ' + s.client + '\n' : ''}👤 Formateur : ${s.formateur}
 ──────────────────────────────
 
 Votre signature vaut attestation de présence (Qualiopi).
 
-En cas de difficulté, signalez-le à votre formateur.
-
+Bonne formation,
 ${s.formateur}
 LENOUVION Consulting — Formation IA · Qualiopi
 SIRET 980 112 536 00019`;
 }
 
 function buildBodyForm(s, appUrl) {
-  const slot = getSlotLabel(s);
-  const link = appUrl ? `🔗 ${appUrl}` : `🔗 ${DEFAULT_URL}`;
+  const url = appUrl || DEFAULT_URL;
   const liste = s.participants.map((p,i) => {
     const ok = p.email && p.email.includes('@');
     return `  ${i+1}. ${p.prenom} ${p.nom}${p.societe ? ' (' + p.societe + ')' : ''}${ok ? ' — ' + p.email : ' ⚠ pas d\'email'}`;
@@ -1014,13 +1348,12 @@ function buildBodyForm(s, appUrl) {
 
 Récapitulatif de votre session — démarrage dans quelques minutes.
 
-${link}
+🔗 Lien émargement : ${url}
 
 ──────────────────────────────
 📚 ${s.title}
 📅 ${fmtD(s.ds)}${s.de !== s.ds ? ' → ' + fmtD(s.de) : ''}  ·  ⏰ ${s.hs}–${s.he}
-${s.lieu ? '📍 ' + s.lieu + '  ·  ' : ''}📋 ${slot}
-──────────────────────────────
+${s.lieu ? '📍 ' + s.lieu + '\n' : ''}${s.client ? '🏢 ' + s.client + '\n' : ''}──────────────────────────────
 
 👥 PARTICIPANTS (${s.participants.length}) :
 ${liste || '  Aucun participant enregistré.'}
@@ -1031,81 +1364,45 @@ LENOUVION Consulting — Formation IA · Qualiopi`;
 }
 
 // ════════════════════════════════════════════
-// EMAIL MODAL
+// MODAL BROUILLON INDIVIDUEL
 // ════════════════════════════════════════════
-function openEmailModal() {
+let draftPid = null;
+
+function openDraft(pid) {
   const s = getActive(); if (!s) return;
-  // slots selector
-  const sel = document.getElementById('em_slot');
-  sel.innerHTML = '<option value="all">Toutes</option>' +
-    s.slots.map((sl,i) => `<option value="${i}">${esc(sl)}</option>`).join('');
-  sel.value = String(S.aslot);
-  // url
-  document.getElementById('em_appurl').value = S.appUrl || DEFAULT_URL;
-  // listeners
-  sel.onchange = updateEmailPreview;
-  document.getElementById('em_appurl').oninput = updateEmailPreview;
-  document.getElementById('em_sendparts').onchange = updateEmailPreview;
-  document.getElementById('em_sendform').onchange = updateEmailPreview;
-  updateEmailPreview();
+  const p = s.participants.find(x => x.id === pid); if (!p) return;
+  if (!p.email || !p.email.includes('@')) { toast('Pas d\'adresse email pour ce participant','warn'); return; }
+  draftPid = pid;
+  document.getElementById('draft_to').textContent = `À : ${p.email}`;
+  document.getElementById('draft_subject').value = buildSubjPart(s);
+  document.getElementById('draft_body').value = buildBodyPart(s, p, S.appUrl || DEFAULT_URL);
+  openModal('draftModal');
+}
+
+function sendDraft() {
+  const s = getActive(); if (!s) return;
+  const p = s.participants.find(x => x.id === draftPid); if (!p) return;
+  fireMailto(p.email, document.getElementById('draft_subject').value, document.getElementById('draft_body').value);
+  closeModal('draftModal');
+  toast(`✉ Email ouvert pour ${p.prenom} ${p.nom}`);
+}
+
+// ════════════════════════════════════════════
+// MODAL EMAIL FORMATEUR
+// ════════════════════════════════════════════
+function openEmailFormateur() {
+  const s = getActive(); if (!s) return;
+  if (!s.fmail || !s.fmail.includes('@')) { toast('Pas d\'email formateur — modifiez la session','warn'); return; }
+  document.getElementById('em_subject').value = buildSubjForm(s);
+  document.getElementById('em_body').value = buildBodyForm(s, S.appUrl || DEFAULT_URL);
   openModal('emailModal');
 }
 
-function updateEmailPreview() {
+function sendEmailFormateur() {
   const s = getActive(); if (!s) return;
-  const appUrl = document.getElementById('em_appurl').value.trim() || DEFAULT_URL;
-  const sendParts = document.getElementById('em_sendparts').checked;
-  const sendForm = document.getElementById('em_sendform').checked;
-  const sampleP = s.participants[0] || { prenom: 'Participant', nom: '', email: 'exemple@société.fr', societe: '', fonction: '' };
-
-  document.getElementById('em_prev_subj').textContent = buildSubjPart(s);
-  document.getElementById('em_prev_body').textContent = buildBodyPart(s, sampleP, appUrl);
-
-  const withEmail = s.participants.filter(p => p.email && p.email.includes('@'));
-  const noEmail = s.participants.filter(p => !p.email || !p.email.includes('@'));
-  const warn = document.getElementById('em_warn');
-  const warnMsg = document.getElementById('em_warn_msg');
-  if (noEmail.length && sendParts) {
-    warn.style.display = 'block';
-    warnMsg.textContent = `${noEmail.length} participant(s) sans email : ${noEmail.map(p => p.prenom + ' ' + p.nom).join(', ')}`;
-  } else { warn.style.display = 'none'; }
-
-  const lines = [];
-  if (sendParts) lines.push(`📨 ${withEmail.length} email(s) participants (ouverture client email)`);
-  if (sendForm && s.fmail) lines.push(`📨 1 email formateur → ${s.fmail}`);
-  else if (sendForm && !s.fmail) lines.push(`⚠ Email formateur : adresse manquante — modifiez la session`);
-  if (!sendParts && !sendForm) lines.push('Aucun destinataire sélectionné.');
-  document.getElementById('em_summary').innerHTML = lines.join('<br>');
-}
-
-function sendEmails() {
-  const s = getActive(); if (!s) return;
-  const appUrl = document.getElementById('em_appurl').value.trim() || DEFAULT_URL;
-  const sendParts = document.getElementById('em_sendparts').checked;
-  const sendForm = document.getElementById('em_sendform').checked;
-  S.appUrl = appUrl; persist();
-
-  const recipients = [];
-  if (sendParts) {
-    s.participants.filter(p => p.email && p.email.includes('@')).forEach(p => {
-      recipients.push({ email: p.email, subject: buildSubjPart(s), body: buildBodyPart(s, p, appUrl) });
-    });
-  }
-  if (sendForm && s.fmail && s.fmail.includes('@')) {
-    recipients.push({ email: s.fmail, subject: buildSubjForm(s), body: buildBodyForm(s, appUrl) });
-  }
-  if (!recipients.length) { toast('Aucun email valide — vérifiez les adresses','warn'); return; }
-
+  fireMailto(s.fmail, document.getElementById('em_subject').value, document.getElementById('em_body').value);
   closeModal('emailModal');
-  let delay = 0;
-  recipients.forEach((r, i) => {
-    setTimeout(() => {
-      const mailto = `mailto:${encodeURIComponent(r.email)}?subject=${encodeURIComponent(r.subject)}&body=${encodeURIComponent(r.body)}`;
-      window.location.href = mailto;
-      if (i === recipients.length - 1) toast(`✓ ${recipients.length} email(s) ouverts dans votre client email`);
-    }, delay);
-    delay += 800;
-  });
+  toast('✉ Email formateur ouvert');
 }
 
 // ════════════════════════════════════════════
@@ -1156,7 +1453,7 @@ function exportPDF() {
       const even = idx%2===0;
       doc.setFillColor(even?250:255, even?246:255, even?238:255); doc.rect(mg,rY,W-mg*2,rH,'F');
       doc.setDrawColor(180,178,169); doc.setLineWidth(.25); doc.rect(mg,rY,W-mg*2,rH,'S');
-      const present = p.presence[si] !== false;
+      const present = p.presence[si] !== false && p.presence[String(si)] !== false;
       xO = mg;
       [String(idx+1), `${p.prenom} ${p.nom}`, p.societe||'', p.fonction||'', p.email||'', present?'Présent':'Absent'].forEach((c,i) => {
         if (i===1) { doc.setFont('helvetica','bold'); doc.setTextColor(11,11,12); }
@@ -1165,9 +1462,16 @@ function exportPDF() {
         doc.setFontSize(6); doc.text(String(c).substring(0,30), xO+2, rY+8);
         xO += cols[i];
       });
-      const sig = p.signatures[si];
-      if (sig) { try { doc.addImage(sig,'PNG',xO+2,rY+1,85,12); } catch(e) {} }
-      else { doc.setDrawColor(180,178,169); doc.setLineWidth(.2); doc.rect(xO+2,rY+1,85,11,'S'); doc.setFontSize(5.5); doc.setTextColor(180,178,169); doc.text('À signer',xO+44,rY+8,{align:'center'}); }
+      const sig = p.signatures[si] || p.signatures[String(si)];
+      if (sig) {
+        try {
+          // strip data URL prefix if needed and force PNG format
+          doc.addImage(sig, 'PNG', xO+2, rY+1, 85, 12);
+        } catch(e) {
+          // fallback: try as JPEG
+          try { doc.addImage(sig, 'JPEG', xO+2, rY+1, 85, 12); } catch(e2) {}
+        }
+      } else { doc.setDrawColor(180,178,169); doc.setLineWidth(.2); doc.rect(xO+2,rY+1,85,11,'S'); doc.setFontSize(5.5); doc.setTextColor(180,178,169); doc.text('À signer',xO+44,rY+8,{align:'center'}); }
       rY += rH;
     });
     doc.setFillColor(11,11,12); doc.rect(0,H-9,W,11,'F');
@@ -1196,12 +1500,133 @@ function exportJSON() {
 }
 
 // ════════════════════════════════════════════
+// TOKEN & PUBLISH
+// ════════════════════════════════════════════
+function saveToken() {
+  const t = document.getElementById('at_token_input').value.trim();
+  if (!t) { toast('Token requis','warn'); return; }
+  S.atToken = t;
+  localStorage.setItem('lnc_at_token', t);
+  persist();
+  closeModal('tokenModal');
+  toast('✓ Token enregistré — publication en cours…');
+  renderTokenStatus();
+  setTimeout(() => handlePublish(), 150);
+}
+
+function handlePublish() {
+  const s = getActive(); if (!s) return;
+  // Always re-read token from all sources
+  if (!S.atToken) S.atToken = localStorage.getItem('lnc_at_token') || '';
+  const token = S.atToken || localStorage.getItem('lnc_at_token') || '';
+  if (!token) {
+    document.getElementById('at_token_input').value = '';
+    openModal('tokenModal');
+    return;
+  }
+  if (s.published) {
+    showLinkModal(s);
+  } else {
+    publishSession(s).then(() => { if (s.published) showLinkModal(s); });
+  }
+}
+
+function showLinkModal(s) {
+  const link = SIGNER_URL;
+  document.getElementById('signerLink').textContent = link;
+  document.getElementById('syncStatus').style.display = 'block';
+  openModal('linkModal');
+}
+
+function copyLink() {
+  const link = document.getElementById('signerLink').textContent;
+  navigator.clipboard.writeText(link).then(() => toast('✓ Lien copié'));
+}
+
+function resetToken() {
+  S.atToken = '';
+  localStorage.removeItem('lnc_at_token');
+  persist();
+  closeModal('linkModal');
+  renderTokenStatus();
+  document.getElementById('at_token_input').value = '';
+  openModal('tokenModal');
+}
+
+function closeSessionActive() {
+  const s = getActive(); if (!s) return;
+  closeSession(s);
+  closeModal('linkModal');
+}
+
+// Update renderSV to show publish status
+const _origRenderSV = renderSV;
+
+// ════════════════════════════════════════════
 // INIT
 // ════════════════════════════════════════════
 hydrate();
-renderSB();
+renderSB(); // renderSB calls renderTokenStatus
 if (S.aid && S.sessions.find(s => s.id === S.aid)) renderSV();
 else if (S.sessions.length) { S.aid = S.sessions[0].id; renderSB(); renderSV(); }
 </script>
+
+<!-- ════════════════════════════════
+     MODAL : TOKEN AIRTABLE
+═════════════════════════════════ -->
+<div class="overlay" id="tokenModal" style="display:none;">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-h">
+      <div class="modal-title">🔑 Token Airtable</div>
+      <button class="modal-x" onclick="closeModal('tokenModal')">✕</button>
+    </div>
+    <div class="modal-b">
+      <div class="fg">
+        <label>Personal Access Token</label>
+        <input type="text" id="at_token_input" placeholder="patXXXXXXXXXXXXXX.XXXX…" autocomplete="off" autocorrect="off" spellcheck="false">
+        <div style="font-size:10px;color:var(--Wi);margin-top:5px;line-height:1.6;">
+          Trouvez-le sur <strong>airtable.com → Account → Developer Hub → Personal Access Tokens</strong><br>
+          Scopes requis : <code>data.records:read</code> et <code>data.records:write</code><br>
+          ⚠ Le token change à chaque fois que vous l'éditez dans Airtable — pensez à recopier le nouveau.
+        </div>
+      </div>
+    </div>
+    <div class="modal-f">
+      <button class="btn btn-s" onclick="closeModal('tokenModal')">Annuler</button>
+      <button class="btn btn-p" onclick="saveToken()">✓ Enregistrer et publier</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════
+     MODAL : LIEN DE SIGNATURE
+═════════════════════════════════ -->
+<div class="overlay" id="linkModal" style="display:none;">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-h">
+      <div class="modal-title">🌐 Session publiée !</div>
+      <button class="modal-x" onclick="closeModal('linkModal')">✕</button>
+    </div>
+    <div class="modal-b">
+      <p style="font-size:13px;color:var(--Sl);margin-bottom:14px;">Partagez ce lien avec vos participants. Chacun signe sa case directement depuis son téléphone.</p>
+      <div style="background:var(--Cr);border:1px solid var(--Wi);border-radius:6px;padding:12px;display:flex;align-items:center;gap:10px;">
+        <span id="signerLink" style="font-size:12px;color:var(--T);font-weight:600;word-break:break-all;flex:1;"></span>
+        <button class="btn btn-p btn-sm" onclick="copyLink()">📋 Copier</button>
+      </div>
+      <p style="font-size:11px;color:var(--Wi);margin-top:8px;">Les signatures remontent automatiquement toutes les 5 secondes.</p>
+      <div id="syncStatus" style="margin-top:10px;padding:8px 10px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;font-size:12px;color:var(--G);display:none;">
+        🟢 Synchronisation active
+      </div>
+    </div>
+    <div class="modal-f" style="justify-content:space-between;flex-wrap:wrap;gap:6px;">
+      <button class="btn btn-s btn-sm" onclick="resetToken()">🔑 Changer le token</button>
+      <div style="display:flex;gap:6px;">
+        <button class="btn btn-s" onclick="closeModal('linkModal')">Fermer</button>
+        <button class="btn btn-sm" style="background:#dc2626;color:#fff;" onclick="closeSessionActive()">🔒 Clôturer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
