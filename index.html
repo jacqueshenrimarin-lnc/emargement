@@ -190,6 +190,7 @@ textarea { resize: vertical; min-height: 44px; }
     <div class="sb-head">
       <div class="sb-title">Sessions</div>
       <button class="btn btn-p btn-w" id="btnNew">＋ Nouvelle session</button>
+      <button class="btn btn-s btn-w" style="margin-top:5px;font-size:11px;" onclick="syncFromAirtable()">☁ Récupérer depuis Airtable</button>
     </div>
     <div class="sb-list" id="sbList"></div>
     <div class="sb-foot">
@@ -950,8 +951,94 @@ function openTokenSetup() {
 }
 
 // ════════════════════════════════════════════
-// RENDER SIDEBAR
+// SYNC FROM AIRTABLE
 // ════════════════════════════════════════════
+async function syncFromAirtable() {
+  if (!getToken()) { openModal('tokenModal'); return; }
+  toast('⏳ Récupération depuis Airtable…');
+  try {
+    // 1. Charger toutes les sessions
+    const sessData = await atFetch(`/${TBL_SESS}?maxRecords=50`);
+    if (!sessData.records.length) { toast('Aucune session trouvée dans Airtable', 'warn'); return; }
+
+    // 2. Charger tous les participants
+    const partData = await atFetch(`/${TBL_PARTS}?maxRecords=500`);
+
+    // 3. Reconstruire les sessions locales
+    const rebuilt = sessData.records.map(r => {
+      const f = r.fields;
+      const sessionId = f.session_id || r.id;
+
+      // Participants de cette session
+      const parts = partData.records
+        .filter(pr => pr.fields.session_id === sessionId)
+        .map(pr => {
+          const pf = pr.fields;
+          const signatures = {};
+          if (pf.signature) signatures[0] = pf.signature;
+          return {
+            id: pf.participant_id || pr.id,
+            atRecordId: pr.id,
+            prenom: pf.prenom || '',
+            nom: pf.nom || '',
+            email: pf.email || '',
+            societe: pf.societe || '',
+            fonction: pf.fonction || '',
+            signatures,
+            presence: { 0: pf.presence !== false }
+          };
+        });
+
+      return {
+        id: sessionId,
+        atRecordId: r.id,
+        title: f.titre || '',
+        ds: f.date_debut || '',
+        de: f.date_fin || '',
+        hs: f.heure_debut || '09:00',
+        he: f.heure_fin || '17:00',
+        lieu: f.lieu || '',
+        client: f.client || '',
+        formateur: f.formateur || '',
+        fmail: f.fmail || '',
+        slots: (() => { try { return JSON.parse(f.slots || '["Journée complète"]'); } catch(e) { return ['Journée complète']; } })(),
+        statut: f.statut || 'brouillon',
+        published: f.statut === 'actif',
+        participants: parts,
+        createdAt: f.createdAt || new Date().toISOString()
+      };
+    });
+
+    // 4. Fusionner avec les sessions locales existantes (évite les doublons)
+    rebuilt.forEach(remote => {
+      const existing = S.sessions.find(s => s.id === remote.id);
+      if (existing) {
+        // Mettre à jour les données mais garder les signatures locales si plus récentes
+        Object.assign(existing, remote);
+      } else {
+        S.sessions.unshift(remote);
+      }
+    });
+
+    // 5. Sélectionner la session active (statut actif en priorité)
+    const active = S.sessions.find(s => s.published) || S.sessions[0];
+    if (active) { S.aid = active.id; S.aslot = 0; }
+
+    persist();
+    renderSB();
+    if (S.aid) renderSV();
+    toast(`✓ ${rebuilt.length} session(s) récupérée(s) depuis Airtable`, 'ok');
+
+    // Redémarrer le polling si session active
+    const activeSess = getActive();
+    if (activeSess?.published) startPoll(activeSess);
+
+  } catch(e) {
+    toast(`Erreur : ${e.message}`, 'warn');
+  }
+}
+
+
 function renderSB() {
   renderTokenStatus();
   const el = document.getElementById('sbList');
@@ -1569,6 +1656,10 @@ hydrate();
 renderSB(); // renderSB calls renderTokenStatus
 if (S.aid && S.sessions.find(s => s.id === S.aid)) renderSV();
 else if (S.sessions.length) { S.aid = S.sessions[0].id; renderSB(); renderSV(); }
+else if (getToken()) {
+  // Pas de sessions locales mais token présent → récupérer depuis Airtable automatiquement
+  syncFromAirtable();
+}
 </script>
 
 <!-- ════════════════════════════════
